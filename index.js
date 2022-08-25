@@ -1,8 +1,15 @@
 const { application } = require('express')
 const express = require('express')
 const app = express()
+const cors = require('cors')
+const morgan = require('morgan')
+morgan.token('body', req => {
+    return JSON.stringify(req.body)
+})
 
 app.use(express.json())
+app.use(cors())
+app.use(morgan(':method :url :status :body'))
 
 let persons = [
     {
@@ -60,7 +67,6 @@ app.delete('/api/persons/:id', (request, response) => {
 
 app.post('/api/persons', (request, response) => {
     const newPerson = request.body
-    console.log(newPerson)
     if (newPerson.name == null || newPerson.number == null) {
         return response.status(400).json({
             error: "Content Missing from request"
