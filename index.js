@@ -16,32 +16,40 @@ app.use(cors())
 app.use(morgan(':method :url :status :body'))
 app.use(express.static('build'))
 
-app.get('/info', (request, response) => {
-    response.send(
-        `Phone book has info for ${persons.length} people<br> ${new Date}}`
-    )
-})
-
 app.get('/api/persons', (request, response) => {
     Person.find({}).then(person => {
-        response.json(person)
+        if (person) {
+            response.json(person)
+        } else {
+            response.status(404).end()
+        }
     })
+        .catch(error => next(error))
 })
 
 app.get('/api/persons/:id', (request, response) => {
-    Person.findById(request.params.id).then(person => {
-        response.json(person)
-    })
+    Person.findById(request.params.id)
+        .then(person => {
+            if (person) {
+                response.json(person)
+            } else {
+                response.status(404).end()
+            }
+        })
+        .catch(error => next(error))
 
 })
 
 app.delete('/api/persons/:id', (request, response) => {
-    Person.deleteOne({ _id: request.params.id })
+    Person.findByIdAndRemove(request.params.id)
+        .then(result => {
+            response.status(204).end()
+        })
+        .catch(error => next(error))
 })
 
 app.post('/api/persons', (request, response) => {
     const body = request.body
-
     if (body.name === undefined) {
         return response.status(400).json({ error: 'content missing' })
     }
@@ -55,6 +63,27 @@ app.post('/api/persons', (request, response) => {
         response.json(savedPerson)
     })
 })
+
+app.put('/api/persons/:id', (request, response, next) => {
+    const body = request.body
+
+    const newPerson = {
+        name: body.name,
+        number: body.number
+    }
+
+    Person.findByIdAndUpdate(request.params.id, newPerson, { new: true })
+        .then(updatedNote => {
+            response.json(updatedNote)
+        })
+        .catch(error => next(error))
+})
+
+const checkNameExists = (nameToFind) => {
+    if (Person.find({ name: nameToFind })) {
+        console.log('person found')
+    }
+}
 
 const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {
