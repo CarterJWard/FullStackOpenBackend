@@ -1,8 +1,11 @@
-const { application } = require('express')
+require('dotenv').config()
+
 const express = require('express')
 const app = express()
 const cors = require('cors')
 const morgan = require('morgan')
+
+const Person = require('./models/Person')
 
 morgan.token('body', req => {
     return JSON.stringify(req.body)
@@ -13,33 +16,6 @@ app.use(cors())
 app.use(morgan(':method :url :status :body'))
 app.use(express.static('build'))
 
-let persons = [
-    {
-        "id": 1,
-        "name": "Arto Hellas",
-        "number": "040-123456"
-    },
-    {
-        "id": 2,
-        "name": "Ada Lovelace",
-        "number": "39-44-5323523"
-    },
-    {
-        "id": 3,
-        "name": "Dan Abramov",
-        "number": "12-43-234345"
-    },
-    {
-        "id": 4,
-        "name": "Mary Poppendieck",
-        "number": "39-23-6423122"
-    }
-]
-
-app.get('/', (request, response) => {
-    response.send('<h1>Hello World!</h1>')
-})
-
 app.get('/info', (request, response) => {
     response.send(
         `Phone book has info for ${persons.length} people<br> ${new Date}}`
@@ -47,54 +23,38 @@ app.get('/info', (request, response) => {
 })
 
 app.get('/api/persons', (request, response) => {
-    response.json(persons)
+    Person.find({}).then(person => {
+        response.json(person)
+    })
 })
 
 app.get('/api/persons/:id', (request, response) => {
-    const id = Number(request.params.id)
-    const personToReturn = persons.find(person => person.id === id)
-    if (personToReturn) {
-        response.json(personToReturn)
-    } else {
-        response.status(404).end()
-    }
+    Person.findById(request.params.id).then(person => {
+        response.json(person)
+    })
 
 })
 
 app.delete('/api/persons/:id', (request, response) => {
-    const id = Number(request.params.id)
-    persons = persons.filter(person => person.id !== id)
-    response.status(204).end()
+    Person.deleteOne({ _id: request.params.id })
 })
 
 app.post('/api/persons', (request, response) => {
-    const newPerson = request.body
-    if (newPerson.name == null || newPerson.number == null) {
-        return response.status(400).json({
-            error: "Content Missing from request"
-        })
+    const body = request.body
+
+    if (body.name === undefined) {
+        return response.status(400).json({ error: 'content missing' })
     }
 
-    if (checkNameExists(newPerson.name)) {
-        return response.status(400).json({
-            error: "Name already exists in phone book"
-        })
-    }
+    const newPerson = new Person({
+        name: body.name,
+        number: body.number
+    })
 
-    const newPersonWithID = {
-        "id": Math.floor((Math.random() * 3000) + 1),
-        "name": newPerson.name,
-        "number": newPerson.number
-    }
-    persons = persons.concat(newPersonWithID)
-    response.json(newPersonWithID)
+    newPerson.save().then(savedPerson => {
+        response.json(savedPerson)
+    })
 })
-
-const checkNameExists = (name) => {
-    const match = persons.filter(person => person.name === name)
-    return (match.length != 0)
-}
-
 
 const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {
